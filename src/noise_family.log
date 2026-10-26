@@ -1,0 +1,7 @@
+SNR=clean  macro-F1=0.900
+SNR=   20  macro-F1=0.496
+SNR=   10  macro-F1=0.424
+SNR=    5  macro-F1=0.376
+SNR=    0  macro-F1=0.320
+SNR=   -5  macro-F1=0.294
+wrote ../results/noise_family.csv

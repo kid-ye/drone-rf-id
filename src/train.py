@@ -32,8 +32,10 @@ def get_models():
         "SVM-RBF": make_pipeline(StandardScaler(), SVC(kernel="rbf")),
     }
     if HAS_XGB:
+        # ponytail: CPU-tractable settings (this box has no CUDA). Lighter than
+        # the GPU preset in the README; bump n_estimators back up on a GPU.
         m["XGBoost"] = XGBClassifier(
-            n_estimators=300, max_depth=6, tree_method="hist", n_jobs=-1)
+            n_estimators=150, max_depth=5, tree_method="hist", n_jobs=-1)
     return m
 
 

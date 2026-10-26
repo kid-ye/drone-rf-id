@@ -293,9 +293,23 @@ Single 75/25 split for presence/family; 5-fold for mode.
 |---|---|---|---|---|
 | **Presence** | 1.000 | 0.978 | 1.000 | 1.000 |
 | **Family** | 0.999 | 0.898 | 0.977 | 1.000 |
-| **Mode (5-fold)** | 0.375 ±0.009 | 0.371 ±0.014 | 0.160 ±0.028* | **run on GPU** |
+| **Mode (5-fold)** | 0.375 ±0.009 | 0.378 ±0.009 | 0.160 ±0.028* | **0.492 ±0.009** |
 
 \*SVM capped at 5k training samples — thin for 10 classes, hence low.
+XGBoost-mode ran on CPU with lighter settings (`n_estimators=150, max_depth=5`);
+a GPU with the README's `n_estimators=300` preset should match or slightly beat this.
+
+### Noise-robustness test (family, RandomForest, trained on clean)
+
+Gaussian noise added to the test set at decreasing SNR:
+
+| SNR | clean | 20 dB | 10 dB | 5 dB | 0 dB | -5 dB |
+|---|---|---|---|---|---|---|
+| macro-F1 | 0.900 | 0.496 | 0.424 | 0.376 | 0.320 | 0.294 |
+
+Clear, honest degradation: family classification is **not** robust to heavy
+noise — F1 roughly halves by 20 dB SNR. Good discussion point for the deck's
+"interference in the shared 2.4 GHz band" motivation. Curve: `results/noise_family.png`.
 
 **The story:** presence is trivial, family is solved, **mode is the genuinely hard task** and is where your analysis lives. XGBoost on mode is the one number still missing — it's the first thing to get on the GPU.
 
@@ -304,11 +318,21 @@ These are honestly high because the split already groups by recording file (the 
 
 ---
 
-## 7. Remaining work (after the GPU run)
+## 7. Status — all compute phases done
 
-1. **Get XGBoost's mode number** — `python train.py --task mode --cv 5` on GPU. Expect it to edge above the ~0.37 LR/RF baseline.
-2. **Noise-robustness test** (the deck promises it) — add Gaussian noise to the test features at a few SNR levels, re-measure macro-F1, plot the degradation curve. ~30 lines, add once the base results are confirmed.
-3. **Writeup** — confusion matrices are already in `results/`; turn them into heatmaps and pull the per-class F1 from the classification reports.
+1. ~~Get XGBoost's mode number~~ ✅ **0.492 ±0.009** (best on the hard task).
+2. ~~Noise-robustness test~~ ✅ done — `noise_test.py`, results above, curve in `results/`.
+3. ~~Confusion-matrix / noise plots~~ ✅ done — `plots.py` wrote all PNGs to `results/`.
+
+### What's left for you (not compute)
+- **Report / slides** — the heatmaps (`results/cm_*.png`) and noise curve
+  (`results/noise_family.png`) are ready to drop in. Per-class F1 is in each
+  task's `train_*.log`.
+- **Optional GPU rerun** — re-run `train.py --task mode --cv 5` with the
+  `device="cuda"` + `n_estimators=300` preset if you want the full-strength
+  XGBoost number instead of the lighter CPU one.
+- **Optional** — run the noise test on `presence` / `mode` too
+  (`python noise_test.py --task mode`).
 
 ---
 
