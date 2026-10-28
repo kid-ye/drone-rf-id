@@ -2,3 +2,7 @@ data/raw/
 *.parquet
 __pycache__/
 *.pyc
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/build*.log
