@@ -10,7 +10,6 @@
 % ---- clean light-grey minimalist theme ----
 \usetheme{default}
 \usefonttheme{serif}
-\useinnertheme{rectangles}
 \setbeamertemplate{navigation symbols}{}
 \definecolor{bggray}{RGB}{237,237,237}
 \definecolor{accent}{RGB}{40,72,120}
@@ -18,7 +17,6 @@
 \setbeamercolor{frametitle}{fg=black,bg=bggray}
 \setbeamercolor{title}{fg=black}
 \setbeamercolor{itemize item}{fg=accent}
-\setbeamercolor{itemize subitem}{fg=accent}
 \setbeamerfont{frametitle}{size=\LARGE,series=\mdseries}
 \setbeamertemplate{frametitle}[default][center]
 \setbeamertemplate{itemize item}{\textbullet}
@@ -26,14 +24,14 @@
 
 \begin{document}
 
-% ============ TITLE SLIDE ============
+% ============ TITLE ============
 \begin{frame}[plain]
 \vspace{0.3cm}
 \begin{center}
 {\LARGE\bfseries RF-Based Drone Identification\\[2pt]
 Using Machine Learning}\\[6pt]
 {\footnotesize\color{gray}[23ET7PE3ML]}\\[6pt]
-{\normalsize Dept. of Electronics and Telecommunication Engineering}\\[4pt]
+{\normalsize Department of Electronics and Telecommunication Engineering}\\[4pt]
 {\footnotesize BMS College of Engineering, Bengaluru}
 \end{center}
 \vspace{0.6cm}
@@ -54,41 +52,28 @@ Yash Gupta & (1BM23ET061)\\
 \end{columns}
 \end{frame}
 
-% ============ INTRODUCTION ============
-\begin{frame}{Introduction}
+% ============ INTRODUCTION + PROBLEM ============
+\begin{frame}{Introduction and Problem Definition}
 \begin{itemize}
-\item Drones are cheap and everywhere; their misuse raises privacy and security
-risks near airports and public spaces.
-\item Cameras and radar need line of sight and good conditions. Drones instead
-keep talking to their controllers over RF links in the 2.4~GHz band.
-\item Listening to those RF signals detects a drone passively, without its
-cooperation and without line of sight.
-\item Knowing a drone is present is not enough; a useful system also says
-\emph{which} drone and \emph{what} it is doing.
-\item This project classifies recorded DroneRF signals for three tasks:
-presence, family, and operating condition.
+\item Drones communicate with their controllers over radio-frequency (RF) links
+in the 2.4~GHz band. Listening to these signals enables passive detection
+without line of sight, unlike cameras or radar.
+\item Detecting presence alone is insufficient; a practical system must also
+identify the drone type and, where possible, its operating condition.
+\item The 2.4~GHz band is shared with Wi-Fi and Bluetooth, so recorded signals
+are noisy and classification is non-trivial.
+\item Segments extracted from one recording are highly correlated; splitting
+them across training and test sets inflates accuracy through data leakage.
+\item \textbf{Objective:} classify drone presence, family, and operating
+condition from the DroneRF dataset under a leakage-aware evaluation.
 \end{itemize}
 \end{frame}
 
-% ============ PROBLEM STATEMENT ============
-\begin{frame}{Problem Statement}
-\begin{itemize}
-\item A single sensor cannot read drone presence reliably in all conditions,
-yet security and airspace management depend on it.
-\item The 2.4~GHz band is shared with Wi-Fi and Bluetooth, so recorded RF
-signals are noisy.
-\item Segments cut from one recording are nearly identical. If they fall in both
-train and test sets, accuracy looks better than it is (data leakage).
-\item Goal: classify presence, family, and operating condition from spectral
-features, under an evaluation that explicitly avoids leakage.
-\end{itemize}
-\end{frame}
-
-% ============ FLOWCHART ============
-\begin{frame}{Proposed Workflow}
+% ============ METHODOLOGY (FLOWCHART) ============
+\begin{frame}{Proposed Methodology}
 \centering
 \begin{tikzpicture}[
-  node distance=0.6cm and 0.7cm,
+  node distance=0.55cm and 0.65cm,
   box/.style={rectangle, draw, rounded corners, align=center,
     font=\footnotesize, minimum height=1.0cm, text width=2.3cm, fill=blue!8},
   save/.style={rectangle, draw, rounded corners, align=center,
@@ -111,157 +96,84 @@ features, under an evaluation that explicitly avoids leakage.
 \draw[arr] (train) -- (eval);
 \draw[arr] (eval) -- (noise);
 \end{tikzpicture}
-\end{frame}
-
-% ============ DATASET USED ============
-\begin{frame}{Dataset Used: DroneRF}
-\centering
-\small
-\begin{tabular}{|l|c|c|c|}
-\hline
-\textbf{Class (Family)} & \textbf{BUI codes} & \textbf{Modes} & \textbf{Role} \\
-\hline
-Background (no drone) & 00000 & 1 & Negative class \\
-\hline
-Parrot Bebop & 10000--10011 & 4 & Drone family 1 \\
-\hline
-Parrot AR & 10100--10111 & 4 & Drone family 2 \\
-\hline
-DJI Phantom & 11000 & 1 & Drone family 3 \\
-\hline
-\end{tabular}
-\vspace{0.4cm}
-\begin{itemize}
-\item 227 recording pairs (low \texttt{L} + high \texttt{H} sub-bands) in the
-2.4~GHz ISM band.
-\item Re-segmenting yields \textbf{22{,}700} feature vectors for training.
-\end{itemize}
-\end{frame}
-
-% ============ LABEL DECODING ============
-\begin{frame}{Label Decoding from the Filename}
-\begin{itemize}
-\item Every file name starts with a 5-digit \textbf{BUI} code, e.g.
-\texttt{10111H\_3.csv}.
-\item All three labels are decoded from this one code, so no manual labelling is
-needed.
-\end{itemize}
 \vspace{0.3cm}
-\centering
-\small
-\begin{tabular}{|l|l|}
-\hline
-\textbf{Target} & \textbf{Rule} \\
-\hline
-presence (2 classes) & 0 if background, else 1 \\
-\hline
-family (4 classes) & background / Bebop / AR / Phantom \\
-\hline
-mode (10 classes) & one index per BUI code \\
-\hline
-\end{tabular}
+
+\footnotesize Three classification targets are decoded from a single 5-digit
+BUI filename code: presence (2 classes), family (4), and operating mode (10).
 \end{frame}
 
-% ============ FEATURE EXTRACTION ============
-\begin{frame}{Feature Extraction}
-\begin{itemize}
-\item Each capture is cut into segments of $L=100{,}000$ samples.
-\item For each segment the mean is removed and a 2048-point FFT magnitude is
-taken, keeping the upper half (1024 bins):
-\[
-X_f = \big|\,\mathrm{FFT}_{M}(x-\bar{x})\,\big|,\qquad f=\tfrac{M}{2}+1,\dots,M.
-\]
-\item Low and high sub-bands are joined and squared to give a power spectrum.
-\item Result: a \textbf{2048-dimensional} feature vector per segment.
-\end{itemize}
-\end{frame}
+% ============ DATASET + FEATURES ============
+\begin{frame}{Dataset and Feature Extraction}
+\begin{columns}[t]
+\begin{column}{0.52\textwidth}
+\textbf{DroneRF dataset}
+\vspace{0.15cm}
 
-% ============ LITERATURE SURVEY 1 ============
-\begin{frame}{Literature Survey (1)}
 \scriptsize
-\begin{tabular}{|p{3.0cm}|p{3.0cm}|p{5.6cm}|}
+\begin{tabular}{|l|c|c|}
 \hline
-\textbf{Paper} & \textbf{Method} & \textbf{Why it matters to us} \\
+\textbf{Class} & \textbf{BUI} & \textbf{Modes} \\
 \hline
-Al-Sa'd et al., 2019 (FGCS) & Deep neural networks on DroneRF &
-Created our dataset and the three-task structure we follow. \\
+Background & 00000 & 1 \\
 \hline
-Allahham et al., 2019 (Data in Brief) & DroneRF data descriptor &
-Documents the file layout and BUI labelling we decode. \\
+Parrot Bebop & 10000--10011 & 4 \\
 \hline
-Al-Emadi et al., 2020 & XGBoost, 3 tasks &
-Closest prior work; confirms XGBoost is strong and that mode is the hard task. \\
+Parrot AR & 10100--10111 & 4 \\
 \hline
-Ezuma et al., 2019 (Aerospace) & kNN on RF fingerprints &
-Classic classical-ML baseline using statistical RF features. \\
-\hline
-Ezuma et al., 2020 (OJCOMS) & ML under Wi-Fi/BT interference &
-Motivates our noise-robustness test in the shared band. \\
-\hline
-\end{tabular}
-\end{frame}
-
-% ============ LITERATURE SURVEY 2 ============
-\begin{frame}{Literature Survey (2)}
-\scriptsize
-\begin{tabular}{|p{3.0cm}|p{3.0cm}|p{5.6cm}|}
-\hline
-\textbf{Paper} & \textbf{Method} & \textbf{Why it matters to us} \\
-\hline
-Medaiyese et al., 2022 (PMC) & Wavelet features + ML &
-The main alternative to our FFT/PSD features. \\
-\hline
-LUMEN, 2026 (Sensors) & PSD features, lightweight net &
-Uses the same power-spectral features we chose, on edge devices. \\
-\hline
-Robustness study, 2024 (Sensors) & RF UAV detector robustness &
-Frames our SNR degradation test as standard practice. \\
-\hline
-Ensemble FP, 2024 (Sensors) & Ensemble ML under jamming &
-Supports our Random Forest / XGBoost choice under interference. \\
-\hline
-Complex-valued CNN, 2026 (Sensors) & Low-SNR recognition &
-Recent baseline on a DroneRF-family dataset at low SNR. \\
+DJI Phantom & 11000 & 1 \\
 \hline
 \end{tabular}
 \vspace{0.2cm}
 
-\scriptsize\textbf{Research gap:} most work is deep-learning or omits a
-leakage check. We compare four interpretable classical models across all three
-tasks under a recording-grouped split.
+\footnotesize 227 recording pairs (low \texttt{L} + high \texttt{H} sub-bands),
+2.4~GHz ISM band.
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Feature extraction}
+\begin{itemize}\footnotesize
+\item Segment length $L = 100{,}000$ samples.
+\item 2048-point FFT magnitude, upper 1024 bins:
+\[\scriptstyle
+X_f = \big|\mathrm{FFT}_M(x-\bar{x})\big|
+\]
+\item Low and high sub-bands joined and squared to a power spectrum.
+\item \textbf{2048-D} vector per segment; \textbf{22{,}700} vectors total.
+\end{itemize}
+\end{column}
+\end{columns}
 \end{frame}
 
 % ============ ALGORITHMS ============
-\begin{frame}{Algorithms Used and Why}
+\begin{frame}{Classification Models and Rationale}
 \scriptsize
 \begin{tabular}{|p{2.6cm}|p{4.3cm}|p{4.6cm}|}
 \hline
-\textbf{Algorithm} & \textbf{Why included} & \textbf{Behaviour on this data} \\
+\textbf{Model} & \textbf{Rationale for inclusion} & \textbf{Observed behaviour} \\
 \hline
-Logistic Regression & Simple linear baseline; if it wins, the task is easy &
-Perfect on presence/family, weak (0.375) on mode \\
+Logistic Regression & Linear baseline; a strong result implies a separable task &
+Perfect on presence and family; weak on mode (0.375) \\
 \hline
-Random Forest & Bagging ensemble; handles nonlinear patterns &
-Stable, slightly weaker on family (0.898) \\
+Random Forest & Bagging ensemble; captures non-linear structure &
+Stable; marginally lower on family (0.898) \\
 \hline
-SVM (RBF kernel) & Curved class boundaries &
-Strong on easy tasks; limited on mode (5k-sample cap) \\
+SVM (RBF kernel) & Models curved decision boundaries &
+Strong on simple tasks; limited on mode (5k-sample cap) \\
 \hline
-XGBoost & Gradient-boosted trees; usually the strongest &
-\textbf{Best overall}, and clearly best on the hard mode task \\
+XGBoost & Gradient-boosted trees; state-of-the-art on tabular data &
+\textbf{Best overall}, and decisively best on the mode task \\
 \hline
 \end{tabular}
 \vspace{0.25cm}
 
-\footnotesize\textbf{Comparison takeaway:} all models solve the easy tasks, so
-they look the same there. XGBoost separates from the rest only on the hard
-10-class mode task, which is where the comparison actually matters.
+\footnotesize All four models perform near-identically on the easy tasks. They
+separate only on the 10-class operating-mode task, where XGBoost leads, which is
+where the comparison is meaningful.
 \end{frame}
 
-% ============ RESULTS TABLE ============
-\begin{frame}{Results: Macro-F1 by Model and Task}
+% ============ RESULTS + CONFUSION ============
+\begin{frame}{Classification Results and Confusion Analysis}
 \centering
-\small
+\scriptsize
 \begin{tabular}{|l|c|c|c|c|}
 \hline
 \textbf{Task} & \textbf{LR} & \textbf{RF} & \textbf{SVM} & \textbf{XGBoost} \\
@@ -273,26 +185,17 @@ Family & 0.999 & 0.898 & 0.977 & \textbf{1.000} \\
 Mode (5-fold) & 0.375 & 0.378 & 0.160 & \textbf{0.492} \\
 \hline
 \end{tabular}
-\vspace{0.4cm}
-\begin{itemize}
-\item Presence and family are essentially solved.
-\item The 10-class mode task is hard; XGBoost leads clearly at 0.492
-($\pm0.009$ over 5 folds).
-\end{itemize}
-\end{frame}
 
-% ============ CONFUSION MATRICES ============
-\begin{frame}{Confusion Matrices (XGBoost)}
-\centering
-\includegraphics[height=0.62\textheight]{figs/cm_family.png}\hspace{0.6cm}
-\includegraphics[height=0.62\textheight]{figs/cm_mode.png}
+\vspace{0.2cm}
+\includegraphics[height=0.44\textheight]{figs/cm_family.png}\hspace{0.5cm}
+\includegraphics[height=0.44\textheight]{figs/cm_mode.png}
 
-\footnotesize Family (left) is a clean diagonal. Mode (right) shows where the
-10 operating conditions get confused.
+\footnotesize Macro-F1 by model (top). XGBoost confusion matrices: family is a
+clean diagonal; the 10-class mode task shows residual confusion.
 \end{frame}
 
 % ============ NOISE ROBUSTNESS ============
-\begin{frame}{Noise Robustness (Family)}
+\begin{frame}{Robustness Under Noise and Interference}
 \begin{columns}[c]
 \begin{column}{0.52\textwidth}
 \centering
@@ -312,60 +215,97 @@ clean & 0.900 \\
 $-5$ dB & 0.294 \\
 \hline
 \end{tabular}
-\vspace{0.2cm}
+\vspace{0.25cm}
 
-\footnotesize Accuracy roughly halves by 20~dB SNR: spectral features alone are
-not robust to heavy interference.
+\footnotesize Gaussian noise added to the family test set. Accuracy halves by
+20~dB SNR, confirming that spectral features alone are not robust to the
+interference present in the shared band.
 \end{column}
 \end{columns}
 \end{frame}
 
-% ============ ADVANTAGES ============
-\begin{frame}{Advantages}
-\begin{itemize}
-\item Passive detection: works without line of sight or good lighting.
-\item Interpretable, low-cost classical models; fast to train.
-\item Leakage-aware evaluation gives honest, trustworthy numbers.
-\item Single pipeline answers all three questions (presence, family, mode).
-\item Noise test quantifies real-world robustness instead of assuming it.
+% ============ ADVANTAGES + LIMITATIONS ============
+\begin{frame}{Advantages and Limitations}
+\begin{columns}[t]
+\begin{column}{0.49\textwidth}
+\textbf{Advantages}
+\begin{itemize}\footnotesize
+\item Passive detection without line of sight or lighting constraints.
+\item Interpretable, low-cost models that train quickly.
+\item Leakage-aware evaluation yields trustworthy metrics.
+\item One pipeline answers all three classification questions.
 \end{itemize}
+\end{column}
+\begin{column}{0.49\textwidth}
+\textbf{Limitations}
+\begin{itemize}\footnotesize
+\item Operating-mode classification remains difficult (best F1 0.492).
+\item Spectral features degrade sharply under heavy noise.
+\item Only three drone families are represented in the dataset.
+\item Dataset-based study; no live hardware or field deployment.
+\end{itemize}
+\end{column}
+\end{columns}
 \end{frame}
 
-% ============ LIMITATIONS ============
-\begin{frame}{Limitations}
-\begin{itemize}
-\item Operating-condition (mode) classification remains hard (best F1 0.492).
-\item Spectral features degrade quickly under heavy noise and interference.
-\item Only three drone families in the dataset; limited model diversity.
-\item SVM does not scale, so it used a 5000-sample training subset.
-\item Dataset-based study; no live hardware or real-world deployment.
-\end{itemize}
-\end{frame}
-
-% ============ APPLICATIONS ============
-\begin{frame}{Applications}
-\begin{itemize}
-\item Passive drone surveillance around airports and restricted areas.
+% ============ APPLICATIONS + CONCLUSION ============
+\begin{frame}{Applications and Conclusion}
+\begin{columns}[t]
+\begin{column}{0.49\textwidth}
+\textbf{Applications}
+\begin{itemize}\footnotesize
+\item Passive drone surveillance near airports and restricted zones.
 \item Early warning for unauthorised drones at public events.
 \item Low-cost monitoring on software-defined radios.
-\item Identifying drone type to assess the level of threat.
-\item A baseline for larger RF drone-classification research.
+\item Drone-type identification for threat assessment.
 \end{itemize}
+\end{column}
+\begin{column}{0.49\textwidth}
+\textbf{Conclusion}
+\begin{itemize}\footnotesize
+\item Four classical models were compared across three tasks under a
+leakage-aware split.
+\item Presence and family are reliably classified; XGBoost leads the hard mode
+task at 0.492.
+\item A noise test quantified feature robustness under interference.
+\item Classical models remain competitive with deep learning on this dataset.
+\end{itemize}
+\end{column}
+\end{columns}
 \end{frame}
 
-% ============ CONCLUSION ============
-\begin{frame}{Conclusion}
-\begin{itemize}
-\item Built a classical ML pipeline for RF drone identification on DroneRF.
-\item Compared four models across presence, family, and mode under a
-leakage-aware split.
-\item Presence and family are reliably classified; XGBoost is best on the hard
-mode task at 0.492.
-\item A noise test measured how fast spectral features degrade under
-interference.
-\item Interpretable, low-cost models stay competitive with deep learning on this
-dataset.
-\end{itemize}
+% ============ LITERATURE SURVEY ============
+\begin{frame}{Literature Survey}
+\scriptsize
+\begin{tabular}{|p{3.1cm}|p{2.7cm}|p{5.7cm}|}
+\hline
+\textbf{Paper} & \textbf{Method} & \textbf{Relevance to this work} \\
+\hline
+Al-Sa'd et al., 2019 (FGCS) & Deep neural networks &
+Introduced the DroneRF dataset and the three-task structure adopted here. \\
+\hline
+Al-Emadi et al., 2020 & XGBoost, three tasks &
+Closest prior work; confirms XGBoost's strength and the difficulty of the mode
+task. \\
+\hline
+Ezuma et al., 2020 (OJ-COMS) & ML under Wi-Fi/BT interference &
+Motivates the noise-robustness analysis in the shared 2.4~GHz band. \\
+\hline
+Medaiyese et al., 2022 (PMC) & Wavelet features + ML &
+Principal alternative to the FFT/PSD features used in this project. \\
+\hline
+LUMEN, 2026 (Sensors) & PSD features, lightweight net &
+Validates the power-spectral feature choice on constrained hardware. \\
+\hline
+Robustness study, 2024 (Sensors) & RF UAV detector robustness &
+Establishes SNR-based degradation testing as standard evaluation practice. \\
+\hline
+\end{tabular}
+\vspace{0.2cm}
+
+\footnotesize\textbf{Research gap:} prior work is largely deep-learning-based or
+omits an explicit leakage check. This project compares four interpretable
+classical models across all three tasks under a recording-grouped split.
 \end{frame}
 
 % ============ REFERENCES ============
@@ -375,24 +315,20 @@ dataset.
 \item M. F. Al-Sa'd et al., ``RF-based drone detection and identification using
 deep learning approaches,'' \textit{Future Generation Computer Systems},
 vol. 100, 2019.
-\item M. S. Allahham et al., ``DroneRF dataset,'' \textit{Data in Brief},
-vol. 26, 2019.
 \item S. Al-Emadi, F. Al-Senaid, ``Drone detection using machine learning,''
 \textit{Proc. IEEE IIT}, 2020.
-\item M. Ezuma et al., ``Micro-UAV detection from RF fingerprints,''
-\textit{Proc. IEEE Aerospace Conf.}, 2019.
 \item M. Ezuma et al., ``Detection and classification of UAVs in the presence of
 Wi-Fi and Bluetooth interference,'' \textit{IEEE OJ-COMS}, vol. 1, 2020.
 \item O. O. Medaiyese et al., ``Wavelet transform analytics for RF-based UAV
 detection,'' \textit{Pervasive and Mobile Computing}, vol. 82, 2022.
-\item ``Robustness of deep-learning-based RF UAV detectors,'' \textit{Sensors},
-vol. 24(22), 2024.
-\item ``Composite ensemble learning for passive drone RF fingerprinting,''
-\textit{Sensors}, vol. 24(17), 2024.
-\item ``RF signal recognition of UAV using complex-valued CNN,''
-\textit{Sensors}, vol. 26(2), 2026.
 \item ``LUMEN: lightweight UAV network for PSD-based RF fingerprinting,''
 \textit{Sensors}, vol. 26(10), 2026.
+\item ``Robustness of deep-learning-based RF UAV detectors,'' \textit{Sensors},
+vol. 24(22), 2024.
+\item M. S. Allahham et al., ``DroneRF dataset,'' \textit{Data in Brief},
+vol. 26, 2019.
+\item M. Ezuma et al., ``Micro-UAV detection from RF fingerprints,''
+\textit{Proc. IEEE Aerospace Conf.}, 2019.
 \end{enumerate}
 \end{frame}
 
