@@ -13,3 +13,4 @@ ppt/*.out
 ppt/*.snm
 ppt/*.toc
 ppt/b*.log
+models/
