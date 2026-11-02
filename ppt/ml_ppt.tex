@@ -282,17 +282,38 @@ over five folds).
 \end{itemize}
 \end{frame}
 
-% ============ CONFUSION MATRICES ALL MODELS ============
-\begin{frame}{Confusion Matrices: All Models (Operating Mode)}
+% ============ CONFUSION MATRICES (OPERATING MODE) 1 ============
+\begin{frame}{Confusion Matrices: Operating Mode}
 \centering
-\includegraphics[height=0.40\textheight]{figs/cmmode_LogisticRegression.png}\hfill
-\includegraphics[height=0.40\textheight]{figs/cmmode_RandomForest.png}\\[2pt]
-\includegraphics[height=0.40\textheight]{figs/cmmode_SVM-RBF.png}\hfill
-\includegraphics[height=0.40\textheight]{figs/cmmode_XGBoost.png}
+\begin{columns}[c]
+\begin{column}{0.5\textwidth}
+\centering
+\includegraphics[height=0.66\textheight]{figs/cmmode_LogisticRegression.png}\\
+\footnotesize\textbf{Logistic Regression}
+\end{column}
+\begin{column}{0.5\textwidth}
+\centering
+\includegraphics[height=0.66\textheight]{figs/cmmode_RandomForest.png}\\
+\footnotesize\textbf{Random Forest}
+\end{column}
+\end{columns}
+\end{frame}
 
-\footnotesize Top: Logistic Regression, Random Forest. Bottom: Support Vector
-Machine, XGBoost. XGBoost (bottom-right) shows the strongest diagonal, confirming
-its lead on the mode task.
+% ============ CONFUSION MATRICES (OPERATING MODE) 2 ============
+\begin{frame}{Confusion Matrices: Operating Mode}
+\centering
+\begin{columns}[c]
+\begin{column}{0.5\textwidth}
+\centering
+\includegraphics[height=0.66\textheight]{figs/cmmode_SVM-RBF.png}\\
+\footnotesize\textbf{Support Vector Machine}
+\end{column}
+\begin{column}{0.5\textwidth}
+\centering
+\includegraphics[height=0.66\textheight]{figs/cmmode_XGBoost.png}\\
+\footnotesize\textbf{XGBoost} (strongest diagonal)
+\end{column}
+\end{columns}
 \end{frame}
 
 % ============ NOISE ROBUSTNESS ============
@@ -374,61 +395,140 @@ dataset.
 \end{columns}
 \end{frame}
 
-% ============ LITERATURE SURVEY ============
+% ============ LITERATURE SURVEY 1 ============
 \begin{frame}{Literature Survey}
 \scriptsize
-\begin{tabular}{|p{3.1cm}|p{2.9cm}|p{5.5cm}|}
+\begin{tabular}{|p{3.0cm}|p{2.9cm}|p{5.6cm}|}
 \hline
 \textbf{Reference} & \textbf{Approach} & \textbf{Relevance to the present work} \\
 \hline
 Al-Sa'd \textit{et al.}, 2019 & Deep Neural Networks &
 Established the DroneRF dataset and the three-task structure adopted here. \\
 \hline
+Allahham \textit{et al.}, 2019 & Dataset descriptor &
+Documents the file structure and the Binary Unique Identifier labelling scheme. \\
+\hline
 Al-Emadi \textit{et al.}, 2020 & XGBoost, three tasks &
 Closest prior study; corroborates XGBoost's strength and the difficulty of the
 mode task. \\
 \hline
+Ezuma \textit{et al.}, 2019 & k-Nearest Neighbours &
+Classical-ML baseline using statistical RF-fingerprint features. \\
+\hline
 Ezuma \textit{et al.}, 2020 & Machine learning under interference &
 Motivates the noise-robustness analysis in the shared 2.4~GHz band. \\
+\hline
+\end{tabular}
+\end{frame}
+
+% ============ LITERATURE SURVEY 2 ============
+\begin{frame}{Literature Survey}
+\scriptsize
+\begin{tabular}{|p{3.0cm}|p{2.9cm}|p{5.6cm}|}
+\hline
+\textbf{Reference} & \textbf{Approach} & \textbf{Relevance to the present work} \\
 \hline
 Medaiyese \textit{et al.}, 2022 & Wavelet-transform features &
 Principal alternative to the Fast Fourier Transform features used here. \\
 \hline
+Medaiyese \textit{et al.}, 2022 & Hierarchical learning &
+A hierarchical analogue of the presence, family and mode task structure. \\
+\hline
+Nemer \textit{et al.}, 2021 & Hierarchical ensemble &
+A close methodological sibling to the present classical-ML pipeline on DroneRF. \\
+\hline
+Basak \textit{et al.}, 2022 & Combined detection and classification &
+Studies robustness under multipath and varying Signal-to-Noise Ratio. \\
+\hline
+Swinney and Woods, 2021 & Multi-channel deep network &
+Focuses on the operating-mode task, the hardest task in this project. \\
+\hline
+\end{tabular}
+\end{frame}
+
+% ============ LITERATURE SURVEY 3 ============
+\begin{frame}{Literature Survey}
+\scriptsize
+\begin{tabular}{|p{3.0cm}|p{2.9cm}|p{5.6cm}|}
+\hline
+\textbf{Reference} & \textbf{Approach} & \textbf{Relevance to the present work} \\
+\hline
 LUMEN, 2026 & Power Spectral Density features &
 Validates the power-spectral feature choice on constrained hardware. \\
 \hline
-Sensors, 2024 & RF detector robustness study &
+Complex-valued CNN, 2026 & Low-SNR recognition &
+Recent baseline on a DroneRF-family dataset at low Signal-to-Noise Ratio. \\
+\hline
+Robustness study, 2024 & RF detector robustness &
 Establishes Signal-to-Noise-Ratio degradation testing as standard practice. \\
 \hline
+Composite ensemble, 2024 & Ensemble under jamming &
+Supports the Random Forest and XGBoost choice under interference. \\
+\hline
+RFUAV benchmark, 2025 & Dataset with SNR tools &
+A larger benchmark and a direction for future work. \\
+\hline
 \end{tabular}
-\vspace{0.2cm}
+\vspace{0.15cm}
 
 \footnotesize\textbf{Research gap:} prior studies are largely deep-learning-based
 or omit an explicit leakage check. This work compares four interpretable
 classical models across all three tasks under a recording-grouped split.
 \end{frame}
 
-% ============ REFERENCES ============
+% ============ REFERENCES 1 ============
 \begin{frame}{References}
 \scriptsize
 \begin{enumerate}
 \item M. F. Al-Sa'd \textit{et al.}, ``RF-based drone detection and
 identification using deep learning approaches,'' \textit{Future Generation
 Computer Systems}, vol. 100, 2019.
-\item S. Al-Emadi, F. Al-Senaid, ``Drone detection using machine learning,''
-\textit{Proceedings of the IEEE International Conference on Informatics, IoT and
-Enabling Technologies}, 2020.
+\item M. S. Allahham \textit{et al.}, ``DroneRF dataset: a dataset of drones for
+RF-based detection, classification and identification,'' \textit{Data in Brief},
+vol. 26, 2019.
+\item S. Al-Emadi, F. Al-Senaid, ``Drone detection approach based on
+radio-frequency using machine learning,'' \textit{Proc. IEEE Int. Conf.
+Informatics, IoT and Enabling Technologies}, 2020.
+\item M. Ezuma \textit{et al.}, ``Micro-UAV detection and classification from RF
+fingerprints using machine learning techniques,'' \textit{Proc. IEEE Aerospace
+Conf.}, 2019.
 \item M. Ezuma \textit{et al.}, ``Detection and classification of UAVs in the
 presence of Wi-Fi and Bluetooth interference,'' \textit{IEEE Open Journal of the
 Communications Society}, vol. 1, 2020.
 \item O. O. Medaiyese \textit{et al.}, ``Wavelet transform analytics for
-RF-based UAV detection,'' \textit{Pervasive and Mobile Computing}, vol. 82, 2022.
-\item ``LUMEN: a lightweight UAV network for Power Spectral Density-based RF
-fingerprinting,'' \textit{Sensors}, vol. 26(10), 2026.
+RF-based UAV detection and identification,'' \textit{Pervasive and Mobile
+Computing}, vol. 82, 2022.
+\item O. O. Medaiyese \textit{et al.}, ``Hierarchical learning framework for UAV
+detection and identification,'' \textit{IEEE Journal of Radio Frequency
+Identification}, vol. 6, 2022.
+\item A. Nemer \textit{et al.}, ``RF-based UAV detection and identification using
+a hierarchical learning approach,'' \textit{Sensors}, vol. 21(6), 2021.
+\end{enumerate}
+\end{frame}
+
+% ============ REFERENCES 2 ============
+\begin{frame}{References}
+\scriptsize
+\begin{enumerate}
+\setcounter{enumi}{8}
+\item S. Basak \textit{et al.}, ``Combined RF-based drone detection and
+classification,'' \textit{IEEE Transactions on Cognitive Communications and
+Networking}, vol. 8(1), 2022.
+\item C. J. Swinney, J. C. Woods, ``RF signal-based UAV detection and mode
+classification using a multi-channel deep neural network,'' \textit{Entropy},
+vol. 23(12), 2021.
+\item ``LUMEN: a lightweight UAV multi-enhanced network for Power Spectral
+Density-based RF fingerprinting on edge devices,'' \textit{Sensors},
+vol. 26(10), 2026.
+\item ``Radio frequency signal recognition of UAVs based on a complex-valued
+convolutional neural network,'' \textit{Sensors}, vol. 26(2), 2026.
 \item ``Robustness of deep-learning-based RF UAV detectors,'' \textit{Sensors},
 vol. 24(22), 2024.
-\item M. S. Allahham \textit{et al.}, ``DroneRF dataset,'' \textit{Data in
-Brief}, vol. 26, 2019.
+\item ``Composite ensemble learning framework for passive drone RF
+fingerprinting in sixth-generation networks,'' \textit{Sensors}, vol. 24(17),
+2024.
+\item ``RFUAV: a benchmark dataset for unmanned aerial vehicle detection and
+identification,'' \textit{arXiv preprint}, 2025.
 \end{enumerate}
 \end{frame}
 
