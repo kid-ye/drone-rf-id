@@ -1,0 +1,5 @@
+Logistic Regression [0.999, 0.092, 0.089, 0.093, 0.091, 0.09]
+Random Forest [0.9, 0.489, 0.419, 0.372, 0.318, 0.282]
+Support Vector Machine [0.791, 0.131, 0.124, 0.121, 0.122, 0.12]
+XGBoost [1.0, 0.09, 0.087, 0.09, 0.087, 0.093]
+saved ../results/noise_all.png
