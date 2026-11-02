@@ -6,6 +6,7 @@ family and operating mode, shown against the true answer.
 Run:  streamlit run demo.py
 """
 import joblib
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -48,7 +49,22 @@ if "row" not in st.session_state:
     st.stop()
 
 row = st.session_state.row
-x = row[feat].to_numpy().reshape(1, -1)
+x = row[feat].to_numpy(dtype=float).reshape(1, -1)
+
+st.subheader("Recorded RF signal (power spectrum)")
+vals = row[feat].to_numpy(dtype=float)
+db = 10 * np.log10(vals + 1e-12)
+fig, ax = plt.subplots(figsize=(9, 2.6))
+ax.plot(db, lw=0.6, color="#284878")
+ax.axvline(1024, color="gray", ls="--", lw=0.9)
+ax.text(300, db.max(), "low band", color="gray", fontsize=8)
+ax.text(1300, db.max(), "high band", color="gray", fontsize=8)
+ax.set_xlabel("frequency bin")
+ax.set_ylabel("power (dB)")
+ax.margins(x=0)
+st.pyplot(fig)
+st.caption("This frequency fingerprint is the 2048-number feature vector the "
+           "models classify. Different drones leave different patterns here.")
 
 st.subheader("Predictions vs. ground truth")
 cols = st.columns(3)
