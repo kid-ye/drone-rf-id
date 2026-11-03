@@ -31,7 +31,8 @@ def main():
     args = ap.parse_args()
 
     df = pd.read_parquet(args.data)
-    feat = [c for c in df.columns if c.startswith("f")]
+    feat = [f"f{i}" for i in range(2048)]
+    assert len(feat) == 2048 and "family" not in feat
     X, y = df[feat].to_numpy(), df[args.task].to_numpy()
     groups = df["recording"].to_numpy()
 

@@ -13,6 +13,7 @@ import re
 
 import numpy as np
 import pandas as pd
+from numpy.lib.stride_tricks import sliding_window_view
 
 L = 100_000  # samples per segment  (MATLAB: L = 1e5)
 M = 2048     # FFT bins             (MATLAB: M = 2048)
@@ -28,10 +29,22 @@ FAMILY = {
 MODE = {bui: i for i, bui in enumerate(FAMILY)}  # 0..9, one per BUI
 
 
+_WIN = np.hanning(M)
+_WIN_RMS = np.sqrt((_WIN ** 2).mean())  # keep amplitude scale comparable to raw FFT
+
+
 def segment_features(x):
-    """One L-length segment -> M/2 power-spectrum bins (mirrors MATLAB)."""
-    xf = np.abs(np.fft.fftshift(np.fft.fft(x - x.mean(), M)))
-    return xf[M // 2:]
+    """One L-length segment -> M/2 RMS-magnitude bins via Welch averaging.
+
+    Averages periodograms over 50%-overlapping Hann windows spanning the WHOLE
+    segment, instead of FFT-ing only the first M samples (~2%). Downstream
+    squares this, so the returned sqrt(mean power) becomes mean power.
+    """
+    x = x - x.mean()
+    w = sliding_window_view(x, M)[:: M // 2]          # (n_win, M), 50% overlap
+    spec = np.fft.fftshift(np.fft.fft(w * _WIN, axis=1), axes=1)
+    psd = (np.abs(spec) ** 2).mean(axis=0)
+    return np.sqrt(psd)[M // 2:] / _WIN_RMS
 
 
 def process_capture(bui, low_csv, high_csv, recording_id):

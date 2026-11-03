@@ -46,6 +46,8 @@ def noise_curves():
     for csv in sorted(glob.glob("../results/noise_*.csv")):
         task = os.path.basename(csv)[6:-4]
         d = pd.read_csv(csv)
+        if "snr_db" not in d.columns:
+            continue  # noise_all.csv is wide-format and self-plots; skip it
         x = [str(v) for v in d["snr_db"]]
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.plot(x, d["macro_f1"], "o-")

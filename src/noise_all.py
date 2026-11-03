@@ -30,7 +30,8 @@ def add_noise(X, snr_db, rng):
 
 def main():
     df = pd.read_parquet("../data/features.parquet")
-    feat = [c for c in df.columns if c.startswith("f")]
+    feat = [f"f{i}" for i in range(2048)]
+    assert len(feat) == 2048 and "family" not in feat
     X, y = df[feat].to_numpy(), df["family"].to_numpy()
     g = df["recording"].to_numpy()
     tr, te = next(GroupShuffleSplit(1, test_size=0.25, random_state=0).split(X, y, g))

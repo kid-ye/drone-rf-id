@@ -49,7 +49,8 @@ def main():
     args = ap.parse_args()
 
     df = pd.read_parquet(args.data)
-    feat_cols = [c for c in df.columns if c.startswith("f")]
+    feat_cols = [f"f{i}" for i in range(2048)]
+    assert len(feat_cols) == 2048 and "family" not in feat_cols
     X = df[feat_cols].to_numpy()
     y = df[args.task].to_numpy()
     groups = df["recording"].to_numpy()  # split by recording, never by segment

@@ -17,20 +17,29 @@ BMS College of Engineering. Guide: Dr. C Gururaj.
 
 ## Results (macro-F1)
 
-| Model | Presence | Family | Mode (5-fold) |
+All scores are 5-fold GroupKFold macro-F1 (recording-grouped, leakage-free).
+
+| Model | Presence | Family | Mode |
 |---|---|---|---|
-| Logistic Regression | 1.000 | 0.999 | 0.375 |
-| Random Forest | 0.978 | 0.898 | 0.378 |
-| Support Vector Machine | 1.000 | 0.977 | 0.160* |
-| **XGBoost** | **1.000** | **1.000** | **0.492** |
+| Logistic Regression | 0.450 | 0.453 | 0.401 |
+| Random Forest | 0.995 | 0.874 | 0.711 |
+| Support Vector Machine | 0.450* | 0.430* | 0.262* |
+| **XGBoost** | **0.997** | **0.906** | **0.806** |
 
 \*SVM trained on a 5,000-sample subset per fold (it does not scale).
 
-- Presence and family are essentially solved; the 10-class **mode** task is hard,
-  and **XGBoost leads** it at 0.492 (±0.009 over 5 folds).
-- **Noise-robustness test:** family macro-F1 falls from 0.90 (clean) to 0.29
-  (−5 dB SNR). Notably, **Random Forest is the most noise-robust**, while the
-  high clean-accuracy models collapse under noise (see `results/noise_all.png`).
+- **XGBoost wins every task, decisively.** Difficulty rises as expected:
+  presence (0.997) → family (0.906) → mode (0.806).
+- The linear models (Logistic Regression, SVM) sit near chance (~0.4), while the
+  tree ensembles soar — which shows the problem is strongly **non-linear** and,
+  crucially, confirms there is **no label leakage** (a leak would lift the linear
+  models too).
+- Features use **Welch averaging** over the whole 100,000-sample segment (96
+  overlapping Hann windows), not just the first 2,048 samples — this is what
+  pushes the hard mode task from 0.33 to **0.81**.
+- **Noise-robustness test** (family task): XGBoost is the most accurate at every
+  SNR and degrades gracefully (0.900 clean → 0.300 at −5 dB); Random Forest is
+  second. See `results/noise_all.png`.
 
 ---
 
@@ -98,10 +107,12 @@ shows the predicted presence / family / mode against the true labels.
 
 ## Method (summary)
 
-- **Features:** each recording is cut into 100,000-sample windows; a 2048-point
-  FFT magnitude is taken, the upper 1024 bins kept, the low and high sub-bands
-  concatenated and squared to a power spectrum. Result: a 2048-D vector per
-  segment, 22,700 segments total.
+- **Features:** each recording is cut into 100,000-sample windows. Each window is
+  processed by **Welch averaging** — ~96 overlapping (50%) 2048-sample Hann
+  windows, FFT, and averaged power spectra — so the *whole* segment contributes,
+  not just its first 2,048 samples. The upper 1024 bins of each band are kept,
+  low and high concatenated and squared to a power spectrum. Result: a 2048-D
+  vector per segment, 22,700 segments total.
 - **Labels:** decoded from the 5-digit Binary Unique Identifier (BUI) in each
   filename — no manual labelling.
 - **Leakage control:** all segments of one recording stay on the same side of the

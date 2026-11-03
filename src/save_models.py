@@ -21,7 +21,8 @@ TASKS = ["presence", "family", "mode"]
 def main():
     os.makedirs(OUT, exist_ok=True)
     df = pd.read_parquet(DATA)
-    feat = [c for c in df.columns if c.startswith("f")]
+    feat = [f"f{i}" for i in range(2048)]
+    assert len(feat) == 2048 and "family" not in feat
     X = df[feat].to_numpy()
     groups = df["recording"].to_numpy()
 
