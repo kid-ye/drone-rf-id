@@ -1,12 +1,20 @@
-"""CLI demo: pick a held-out recording, run the pipeline, print the numbers.
+"""CLI demo for RF-based drone identification.
 
-Run:  python cli_demo.py            # random recording
-      python cli_demo.py --i 2      # specific one
-      python cli_demo.py --full     # print all 2048 feature values
+Three commands, run one at a time:
+
+    python cli_demo.py predict            # classify a held-out recording
+    python cli_demo.py matrix             # confusion matrices, all 4 models
+    python cli_demo.py noise              # noise stress test
+
+Options:
+    predict / noise : --i N   pick recording 0..5 (default random)
+    matrix          : --task {presence,family,mode}   --png
 """
 import argparse
 import joblib
 import numpy as np
+import pandas as pd
+from numpy.lib.stride_tricks import sliding_window_view
 
 M = "../models"
 NBINS, Q = 2048, 10
@@ -16,75 +24,157 @@ MODE = {0: "Background", 1: "Bebop mode 1", 2: "Bebop mode 2", 3: "Bebop mode 3"
         4: "Bebop mode 4", 5: "AR mode 1", 6: "AR mode 2", 7: "AR mode 3",
         8: "AR mode 4", 9: "Phantom"}
 NAMES = {"presence": PRESENCE, "family": FAMILY, "mode": MODE}
-
+SHORT = {"presence": ["NoDrone", "Drone"],
+         "family": ["Bgnd", "Bebop", "AR", "Phantom"],
+         "mode": [f"m{i}" for i in range(10)]}
+MODELS4 = ["LogisticRegression", "RandomForest", "SVM-RBF", "XGBoost"]
 
 _WIN = np.hanning(NBINS)
 _WIN_RMS = np.sqrt((_WIN ** 2).mean())
 
 
-def seg_feat(x):
-    """Welch averaging over the whole segment (matches preprocess.py)."""
-    from numpy.lib.stride_tricks import sliding_window_view
-    x = x - x.mean()
-    w = sliding_window_view(x, NBINS)[:: NBINS // 2]
+def welch_mag(x):
+    w = sliding_window_view(x - x.mean(), NBINS)[:: NBINS // 2]
     spec = np.fft.fftshift(np.fft.fft(w * _WIN, axis=1), axes=1)
-    psd = (np.abs(spec) ** 2).mean(axis=0)
-    return np.sqrt(psd)[NBINS // 2:] / _WIN_RMS
+    return np.sqrt((np.abs(spec) ** 2).mean(axis=0))[NBINS // 2:] / _WIN_RMS
 
 
-def show(label, a, n=12):
-    head = ", ".join(f"{v:.4f}" for v in a[:n])
-    print(f"  {label}: [{head}, ...]  (len {len(a)}, min {a.min():.3f}, max {a.max():.3f})")
+def pipeline(L, H):
+    xf, yf = welch_mag(L), welch_mag(H)
+    yf = yf * (xf[-Q:].mean() / yf[:Q].mean())
+    return (np.concatenate([xf, yf]) ** 2).reshape(1, -1)
+
+
+def add_noise(x, snr_db, rng):
+    npow = (x ** 2).mean() / (10 ** (snr_db / 10))
+    return x + rng.normal(0, np.sqrt(npow), x.shape)
 
 
 def rule(t):
-    print("\n" + "=" * 64 + f"\n{t}\n" + "=" * 64)
+    print("\n" + "=" * 64 + f"\n  {t}\n" + "=" * 64)
 
 
-ap = argparse.ArgumentParser()
-ap.add_argument("--i", type=int, default=None)
-ap.add_argument("--full", action="store_true")
+def print_cm(cm, labels):
+    w = max(7, max(len(l) for l in labels) + 1)
+    print("    " + " " * w + "predicted ->")
+    print("    " + " " * w + "".join(f"{l:>{w}}" for l in labels))
+    for i, l in enumerate(labels):
+        row = "".join(f"{cm[i, j]:>{w}}" for j in range(len(labels)))
+        acc = cm[i, i] / cm[i].sum() * 100 if cm[i].sum() else 0
+        print(f"    {l:>{w}}{row}   ({acc:4.0f}% recall)")
+    print(f"\n    Overall accuracy {np.trace(cm) / cm.sum() * 100:.1f}%   "
+          f"(n = {cm.sum()} held-out segments)")
+
+
+def spotlight(i):
+    raw = joblib.load(f"{M}/raw_demo.pkl")
+    i = i if i is not None else int(np.random.randint(len(raw)))
+    s = raw[i]
+    x = pipeline(np.asarray(s["L"], float), np.asarray(s["H"], float))
+    return s, x
+
+
+# ---------------------------------------------------------------- predict
+def cmd_predict(args):
+    s, x = spotlight(args.i)
+    models = {t: joblib.load(f"{M}/xgb_{t}.pkl") for t in NAMES}
+    allm = {n: joblib.load(f"{M}/{n}_family.pkl") for n in MODELS4}
+
+    rule("Classification of a held-out recording")
+    print(f"    File : {s['filename']}   (never seen in training)\n")
+    print(f"    XGBoost on all three tasks:")
+    for task in ["presence", "family", "mode"]:
+        pred, true = int(models[task].predict(x)[0]), int(s[task])
+        nm = NAMES[task]
+        mark = "OK " if pred == true else "XX "
+        print(f"      [{mark}] {task:9s} predicted {nm[pred]:<14s}  actual {nm[true]}")
+
+    true = int(s["family"])
+    print(f"\n    All four models on the family task "
+          f"(actual: {FAMILY[true]}):")
+    for n in MODELS4:
+        pred = int(allm[n].predict(x)[0])
+        mark = "OK " if pred == true else "XX "
+        print(f"      [{mark}] {n:<20s} {FAMILY[pred]}")
+    print()
+
+
+# ---------------------------------------------------------------- matrix
+def cmd_matrix(args):
+    from sklearn.metrics import confusion_matrix
+    hd = pd.read_parquet(f"{M}/demo_samples.parquet")
+    Xh = hd[[f"f{j}" for j in range(2048)]].to_numpy()
+    yh = hd[args.task].to_numpy()
+    labels = [SHORT[args.task][k] for k in sorted(np.unique(yh))]
+
+    rule(f"Confusion matrix per model ({args.task})")
+    cms = {}
+    for n in MODELS4:
+        yp = joblib.load(f"{M}/{n}_{args.task}.pkl").predict(Xh)
+        cms[n] = confusion_matrix(yh, yp)
+        print(f"\n  -- {n} --")
+        print_cm(cms[n], labels)
+
+    if args.png:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        fig, axes = plt.subplots(2, 2, figsize=(9, 8))
+        for ax, n in zip(axes.ravel(), MODELS4):
+            cm = cms[n]
+            ax.imshow(cm, cmap="Blues")
+            ax.set_xticks(range(len(labels))); ax.set_xticklabels(labels, rotation=45, ha="right")
+            ax.set_yticks(range(len(labels))); ax.set_yticklabels(labels)
+            for a in range(len(labels)):
+                for b in range(len(labels)):
+                    ax.text(b, a, cm[a, b], ha="center", va="center", fontsize=8,
+                            color="white" if cm[a, b] > cm.max() / 2 else "black")
+            ax.set_title(n, fontsize=10)
+            ax.set_xlabel("Predicted"); ax.set_ylabel("Actual")
+        fig.suptitle(f"Confusion matrices - {args.task} (600 held-out segments)")
+        fig.tight_layout()
+        out = f"../results/demo_cm_{args.task}.png"
+        fig.savefig(out, dpi=130)
+        print(f"\n    saved {out}")
+
+
+# ---------------------------------------------------------------- noise
+def cmd_noise(args):
+    s, x = spotlight(args.i)
+    fam = joblib.load(f"{M}/xgb_family.pkl")
+    rng = np.random.RandomState(0)
+    true = int(s["family"])
+
+    rule("Noise stress test (family task)")
+    print(f"    File   : {s['filename']}   (never seen in training)")
+    print(f"    Actual : {FAMILY[true]}\n")
+    print(f"    {'SNR':>7} | {'predicted':<14} | result")
+    print(f"    {'-'*7}-+-{'-'*14}-+-------")
+    for snr in ["clean", 20, 10, 5, 0, -5]:
+        if snr == "clean":
+            proba = fam.predict_proba(x)[0]
+        else:
+            draws = np.vstack([add_noise(x, snr, rng) for _ in range(25)])
+            proba = fam.predict_proba(draws).mean(axis=0)
+        pred = int(proba.argmax())
+        tag = "clean" if snr == "clean" else f"{snr} dB"
+        mark = "correct" if pred == true else "misclassified"
+        print(f"    {tag:>7} | {FAMILY[pred]:<14} | {mark}")
+    print()
+
+
+ap = argparse.ArgumentParser(description="RF drone ID demo")
+sub = ap.add_subparsers(dest="cmd", required=True)
+p = sub.add_parser("predict", help="classify a held-out recording")
+p.add_argument("--i", type=int, default=None)
+p.set_defaults(func=cmd_predict)
+p = sub.add_parser("matrix", help="confusion matrices, all 4 models")
+p.add_argument("--task", default="family", choices=list(NAMES))
+p.add_argument("--png", action="store_true")
+p.set_defaults(func=cmd_matrix)
+p = sub.add_parser("noise", help="noise stress test")
+p.add_argument("--i", type=int, default=None)
+p.set_defaults(func=cmd_noise)
+
 args = ap.parse_args()
-
-models = {t: joblib.load(f"{M}/xgb_{t}.pkl") for t in NAMES}
-raw = joblib.load(f"{M}/raw_demo.pkl")
-
-i = args.i if args.i is not None else int(np.random.randint(len(raw)))
-s = raw[i]
-L, H = np.asarray(s["L"], float), np.asarray(s["H"], float)
-
-rule("STEP 1  Selected recording")
-print(f"  File : {s['filename']}")
-print(f"  BUI  : {s['bui']}  (ground-truth code in the filename)")
-print(f"  Raw samples per band: {len(L)} (low) + {len(H)} (high)")
-show("Raw low-band  (time domain)", L)
-show("Raw high-band (time domain)", H)
-
-rule("STEP 2  FFT magnitude (upper 1024 bins per band)")
-xf, yf = seg_feat(L), seg_feat(H)
-show("FFT low  |X_f|", xf)
-show("FFT high |Y_f|", yf)
-
-rule("STEP 3  Band fusion + power spectrum (model input)")
-yf = yf * (xf[-Q:].mean() / yf[:Q].mean())      # continuity scaling
-feat = np.concatenate([xf, yf]) ** 2
-show("2048-D power spectrum", feat)
-if args.full:
-    print("\n  Full feature vector:")
-    print("  " + np.array2string(feat, threshold=np.inf, precision=4,
-                                  max_line_width=100).replace("\n", "\n  "))
-
-rule("STEP 4  Predictions")
-x = feat.reshape(1, -1)
-for task in ["presence", "family", "mode"]:
-    pred = int(models[task].predict(x)[0])
-    true = int(s[task])
-    nm = NAMES[task]
-    mark = "OK " if pred == true else "XX "
-    print(f"  [{mark}] {task:9s} predicted {nm[pred]:<14s}  actual {nm[true]}")
-
-conf = models["mode"].predict_proba(x)[0]
-top = conf.argsort()[::-1][:3]
-print("\n  Mode confidence (top 3): " +
-      ", ".join(f"{MODE[k]} {conf[k]*100:.1f}%" for k in top))
-print()
+args.func(args)
